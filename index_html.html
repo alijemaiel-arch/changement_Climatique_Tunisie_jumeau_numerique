@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jumeau Numérique 3D - Érosion Côtière Tunisie</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            background-color: #0b0f19; 
+            color: #f8fafc; 
+        }
+        #app-container { width: 100vw; height: 100vh; display: block; }
+        
+        /* Panneau de contrôle UI */
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 330px;
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+        h2 { font-size: 1.1rem; margin: 0 0 8px 0; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px; }
+        p.subtitle { font-size: 0.8rem; color: #94a3b8; margin: 0 0 15px 0; line-height: 1.4; }
+        .control-group { margin-bottom: 16px; }
+        label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: #cbd5e1; }
+        input[type=range] { width: 100%; accent-color: #38bdf8; cursor: pointer; }
+        .checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; }
+        
+        /* Carte de métriques */
+        .metric-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .metric-title { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; }
+        .metric-value { font-size: 1.4rem; font-weight: 700; color: #f43f5e; margin: 4px 0; }
+        .metric-sub { font-size: 0.75rem; color: #cbd5e1; }
+        
+        /* Boîte d'alerte d'infrastructure */
+        #alert-box {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            width: 360px;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(12px);
+            border-left: 4px solid #38bdf8;
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            display: none;
+            z-index: 10;
+        }
+    </style>
+
+    <!-- Chargement de Three.js via CDN -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/examples/jsm/controls/OrbitControls.js": "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js"
+        }
+      }
+    </script>
+</head>
+<body>
+
+    <div id="app-container"></div>
+
+    <!-- Interface utilisateur -->
+    <div id="ui-panel">
+        <h2>Jumeau Numérique Tunisie</h2>
+        <p class="subtitle">Simulation 3D WebGL de la hausse du niveau marin (SSP3-7.0) & vulnérabilité côtière.</p>
+        
+        <div class="control-group">
+            <label for="yearSlider">Année de projection : <span id="yearVal" style="color:#38bdf8; font-weight:bold;">2020</span></label>
+            <input type="range" id="yearSlider" min="2020" max="2100" value="2020" step="1">
+        </div>
+
+        <div class="control-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="stormToggle"> Simuler la Tempête & Houle (GLSL)
+            </label>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-title">Élévation du niveau marin</div>
+            <div id="slrVal" class="metric-value">+0.00 m</div>
+            <div class="metric-sub">Recul estimé du trait de côte : <span id="retreatVal" style="font-weight:bold; color:#38bdf8;">0.0</span> m</div>
+        </div>
+    </div>
+
+    <!-- Notification des infrastructures -->
+    <div id="alert-box">
+        <h3 id="alert-title" style="margin:0 0 6px 0; font-size:1rem; color:#f43f5e;">Alerte Infrastructure</h3>
+        <p id="alert-desc" style="margin:0; font-size:0.85rem; color:#cbd5e1; line-height:1.5;"></p>
+    </div>
+
+    <!-- Script de connexion au module 3D -->
+    <script type="module">
+        import { TunisiaDigitalTwin, loadGeoJSONTerrain } from './jumeau_numerique_tunisie_3d-v2.js';
+
+        // 1. Initialisation de la scène
+        const twin = new TunisiaDigitalTwin('app-container');
+
+        // 2. Chargement du relief (Djerba / Golfe de Tunis)
+        loadGeoJSONTerrain(twin.scene, './djerba_relief.geojson', 10.8, 33.8);
+
+        // 3. Contrôles interactifs
+        const slider = document.getElementById('yearSlider');
+        const yearVal = document.getElementById('yearVal');
+        const slrVal = document.getElementById('slrVal');
+        const retreatVal = document.getElementById('retreatVal');
+        const stormToggle = document.getElementById('stormToggle');
+
+        slider.addEventListener('input', (e) => {
+            const year = parseInt(e.target.value);
+            const metrics = twin.setYear(year);
+            yearVal.innerText = metrics.year;
+            slrVal.innerText = `+${metrics.seaLevelMeters} m`;
+            retreatVal.innerText = metrics.shorelineRetreatMeters;
+        });
+
+        stormToggle.addEventListener('change', (e) => {
+            twin.setStormIntensity(e.target.checked ? 1.0 : 0.2);
+        });
+
+        // 4. Capturation des alertes de submersion d'infrastructures
+        window.addEventListener('infrastructure-alert', (e) => {
+            const alertBox = document.getElementById('alert-box');
+            const alertTitle = document.getElementById('alert-title');
+            const alertDesc = document.getElementById('alert-desc');
+
+            const data = e.detail;
+            alertTitle.innerText = `${data.name} (${data.type})`;
+            alertBox.style.borderLeftColor = data.isSubmerged ? '#f43f5e' : '#10b981';
+            alertDesc.innerHTML = `
+                <strong>Statut :</strong> ${data.isSubmerged ? '<span style="color:#f43f5e; font-weight:bold;">SUBMERGÉ / CRITIQUE</span>' : '<span style="color:#10b981; font-weight:bold;">OPÉRATIONNEL</span>'}<br>
+                <strong>Seuil d'inondation :</strong> +${data.criticalThreshold} m<br>
+                <strong>Impact :</strong> ${data.impact}
+            `;
+            alertBox.style.display = 'block';
+        });
+    </script>
+</body>
+</html>
